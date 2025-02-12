@@ -1,0 +1,5 @@
+<resources>
+    <declare-styleable name="ThemeCustom">
+        <attr name="colorButton" format="color" />
+    </declare-styleable>
+</resources>

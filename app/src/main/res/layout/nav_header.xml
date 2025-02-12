@@ -1,0 +1,41 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/buttonBackground"
+    android:padding="16dp">
+
+    <!-- Аватар или изображение заголовка -->
+
+    <!-- Имя пользователя -->
+    <ImageView
+        android:id="@+id/header_image"
+        android:layout_width="89dp"
+        android:layout_height="84dp"
+        android:contentDescription="@string/app_name"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/ic_launcher" />
+
+    <TextView
+        android:id="@+id/header_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Как оно работает?"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <!-- Email пользователя -->
+
+    <!-- Контейнер для кастомных элементов меню -->
+    <LinearLayout
+        android:id="@+id/nav_item_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp"
+        android:divider="@android:drawable/divider_horizontal_textfield"
+        android:showDividers="middle">
+    </LinearLayout>
+</LinearLayout>

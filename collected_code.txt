@@ -1,0 +1,1147 @@
+MainActivity.kt
+package com.blazik.howto
+
+import android.content.Intent
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import androidx.drawerlayout.widget.DrawerLayout
+import com.google.android.material.navigation.NavigationView
+import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.appcompat.widget.SearchView
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.LinearLayout
+import com.google.firebase.database.*
+import com.bumptech.glide.Glide
+import com.google.android.material.imageview.ShapeableImageView
+import android.widget.Button
+import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var navigationView: NavigationView
+    private lateinit var buttonContainer: LinearLayout
+    private lateinit var database: DatabaseReference
+    private val buttonsList = mutableListOf<Pair<Button, LinearLayout>>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        // Инициализация элементов
+        val toolbar: Toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
+        drawerLayout = findViewById(R.id.drawer_layout)
+        navigationView = findViewById(R.id.navigation_view)
+        buttonContainer = findViewById(R.id.button_container)
+
+        // Настройка ActionBarDrawerToggle для открывания и закрывания Drawer
+        val actionBarDrawerToggle = ActionBarDrawerToggle(
+            this, drawerLayout, toolbar, R.string.drawer_open, R.string.drawer_close
+        )
+        drawerLayout.addDrawerListener(actionBarDrawerToggle)
+        actionBarDrawerToggle.syncState()
+
+        // Настройка кастомных пунктов меню
+        setupCustomMenu()
+
+        // Инициализация базы данных Firebase
+        database = FirebaseDatabase.getInstance().getReference("Buttons")
+        loadButtonsFromFirebase()
+    }
+
+    private fun setupCustomMenu() {
+        // Очистите стандартное меню
+        navigationView.menu.clear()
+
+        // Получение шапки NavigationView
+        val menu = navigationView.menu
+
+
+        val items = listOf(
+            Pair("Settings", android.R.drawable.ic_menu_manage),
+            Pair("Help", android.R.drawable.ic_menu_help),
+            Pair("Logout", android.R.drawable.ic_menu_close_clear_cancel)
+        )
+
+        for (item in items) {
+            val menuItem = menu.add(item.first)
+            menuItem.icon = ContextCompat.getDrawable(this, item.second)
+            menuItem.setOnMenuItemClickListener {
+                when (item.first) {
+                    "Settings" -> startActivity(Intent(this, SettingsActivity::class.java))
+                    "Help" -> startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")))
+                    "Logout" -> finish()
+                }
+                drawerLayout.closeDrawers()
+                true
+            }
+        }
+    }
+
+
+
+
+    // Разметка меню в Toolbar
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        val searchItem = menu.findItem(R.id.action_search)
+        val searchView = searchItem.actionView as SearchView
+        searchView.queryHint = "Поиск"
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean = true
+            override fun onQueryTextChange(newText: String?): Boolean {
+                filterButtons(newText.orEmpty())
+                return true
+            }
+        })
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_help -> {
+                // Переход по ссылке при нажатии на Help
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    // Фильтрация кнопок по запросу
+    private fun filterButtons(query: String) {
+        buttonContainer.removeAllViews()
+        for (pair in buttonsList) {
+            val button = pair.first
+            if (button.text.toString().contains(query, ignoreCase = true)) {
+                buttonContainer.addView(pair.second)
+            }
+        }
+    }
+
+    // Загрузка кнопок из Firebase
+    private fun loadButtonsFromFirebase() {
+        database.orderByChild("pos").addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                buttonContainer.removeAllViews()
+                buttonsList.clear()
+                for (buttonSnapshot in snapshot.children) {
+                    val pos = buttonSnapshot.child("pos").value.toString()
+                    val text = buttonSnapshot.child("text").value.toString()
+                    val imageUrl = buttonSnapshot.child("imageUrl").value?.toString() ?: ""
+
+                    val buttonLayout = createButtonWithImage(text, imageUrl, pos)
+                    buttonsList.add(buttonLayout)
+                    buttonContainer.addView(buttonLayout.second)
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {}
+        })
+    }
+
+    // Создание кнопки с изображением
+    private fun createButtonWithImage(
+        text: String,
+        imageUrl: String,
+        pos: String
+    ): Pair<Button, LinearLayout> {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(8, 8, 8, 8) }
+        }
+
+        // Создаем ShapeableImageView с закругленными верхними углами
+        val imageView = ShapeableImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                400
+            )
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            shapeAppearanceModel = shapeAppearanceModel.toBuilder()
+                .setTopLeftCornerSize(50f)
+                .setTopRightCornerSize(50f)
+                .setBottomLeftCornerSize(0f)
+                .setBottomRightCornerSize(0f)
+                .build()
+        }
+
+        // Загружаем изображение с помощью Glide
+        Glide.with(this@MainActivity)
+            .load(imageUrl)
+            .into(imageView)
+
+        // Обработчик нажатия на изображение
+        imageView.setOnClickListener {
+            val intent = Intent(this@MainActivity, SubButtonActivity::class.java)
+            intent.putExtra("buttonPos", pos)
+            startActivity(intent)
+        }
+
+        // Создаем кнопку
+        val button = Button(this).apply {
+            val color = ContextCompat.getColor(context, R.color.buttonBackground)
+            setBackgroundColor(color)
+            this.text = text  // Используем переданное значение
+
+            // Создаем GradientDrawable для закругленных нижних углов
+            val drawable = GradientDrawable().apply {
+                setColor(color)
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, 50f, 50f, 50f, 50f)
+            }
+            background = drawable
+
+            // Обработчик нажатия на кнопку
+            setOnClickListener {
+                val intent = Intent(this@MainActivity, SubButtonActivity::class.java)
+                intent.putExtra("buttonPos", pos)
+                startActivity(intent)
+            }
+        }
+
+        layout.addView(imageView)
+        layout.addView(button)
+        return button to layout
+    }
+}
+
+
+
+
+SettingsActivity.kt
+package com.blazik.howto
+
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import android.view.MenuItem
+
+class SettingsActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_settings)
+
+        // Инициализируем Toolbar для SettingsActivity
+        val toolbar = findViewById<Toolbar>(R.id.settings_toolbar)
+        setSupportActionBar(toolbar)
+
+        // Включаем кнопку "Назад" в Toolbar
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+    }
+
+    // Обработка нажатия на элементы меню
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            android.R.id.home -> {  // Обработка кнопки "Назад"
+                onBackPressed() // Закрыть текущую активность
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+}
+
+
+SubButtonActivity.kt
+package com.blazik.howto
+
+import android.content.Intent
+import android.graphics.drawable.GradientDrawable
+import android.net.Uri
+import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import android.widget.Button
+import android.widget.LinearLayout
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
+import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.bumptech.glide.request.RequestOptions
+import com.google.android.material.imageview.ShapeableImageView
+import com.google.firebase.database.*
+
+class SubButtonActivity : AppCompatActivity() {
+
+    private lateinit var database: DatabaseReference
+    private lateinit var buttonContainer: LinearLayout
+    private lateinit var buttonPos: String
+    private val buttonsList = mutableListOf<Pair<Button, LinearLayout>>()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_sub_button)
+
+        val toolbar = findViewById<Toolbar>(R.id.sub_toolbar)
+        setSupportActionBar(toolbar)
+
+        buttonContainer = findViewById(R.id.sub_button_container)
+        buttonPos = intent.getStringExtra("buttonPos") ?: "1"
+        database = FirebaseDatabase.getInstance().getReference("SubButtons")
+
+        loadButtonsFromFirebase()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        val searchItem = menu.findItem(R.id.action_search)
+        val searchView = searchItem.actionView as SearchView
+        searchView.queryHint = "Search Buttons"
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                filterButtons(newText.orEmpty())
+                return true
+            }
+        })
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_help -> {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun filterButtons(query: String) {
+        buttonContainer.removeAllViews()
+        for (pair in buttonsList) {
+            val button = pair.first
+            if (button.text.toString().contains(query, ignoreCase = true)) {
+                buttonContainer.addView(pair.second)
+            }
+        }
+    }
+
+    private fun loadButtonsFromFirebase() {
+        database.orderByChild("pos").startAt(buttonPos).endAt("${buttonPos}_z")
+            .addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    buttonContainer.removeAllViews()
+                    buttonsList.clear()
+                    for (subButtonSnapshot in snapshot.children) {
+                        val pos = subButtonSnapshot.child("pos").value.toString()
+                        val text = subButtonSnapshot.child("text").value.toString()
+                        val imageUrl = subButtonSnapshot.child("imageUrl").value?.toString() ?: ""
+
+                        val buttonLayout = createButtonWithImage(text, imageUrl, pos)
+                        buttonsList.add(buttonLayout)
+                        buttonContainer.addView(buttonLayout.second)
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {}
+            })
+    }
+
+    private fun createButtonWithImage(text: String, imageUrl: String, pos: String): Pair<Button, LinearLayout> {
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(8, 8, 8, 8) }
+        }
+
+        // Создаем ShapeableImageView с закругленными верхними углами
+        val imageView = ShapeableImageView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                400
+            )
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            shapeAppearanceModel = shapeAppearanceModel.toBuilder()
+                .setTopLeftCornerSize(50f)
+                .setTopRightCornerSize(50f)
+                .build()
+        }
+
+        Glide.with(this)
+            .load(imageUrl)
+            .apply(RequestOptions.bitmapTransform(RoundedCorners(50)))
+            .into(imageView)
+
+        // Делаем изображение кликабельным
+        imageView.setOnClickListener {
+            val intent = Intent(this@SubButtonActivity, VideoActivity::class.java)
+            intent.putExtra("videoScreen", pos)
+            startActivity(intent)
+        }
+
+        // Создаем кнопку с закругленными нижними углами
+        val button = Button(this).apply {
+            val color = ContextCompat.getColor(context, R.color.buttonBackground)
+            this.setBackgroundColor(color)
+            this.text = text
+
+            // Создаем GradientDrawable с закругленными нижними углами
+            val drawable = GradientDrawable().apply {
+                setColor(color)
+                cornerRadii = floatArrayOf(0f, 0f, 0f, 0f, 50f, 50f, 50f, 50f)
+            }
+            background = drawable
+
+            setOnClickListener {
+                val intent = Intent(this@SubButtonActivity, VideoActivity::class.java)
+                intent.putExtra("videoScreen", pos)
+                startActivity(intent)
+            }
+        }
+
+        layout.addView(imageView)
+        layout.addView(button)
+        return button to layout
+    }
+}
+
+
+VideoActivity.kt
+package com.blazik.howto
+
+import android.os.Bundle
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import com.google.firebase.database.*
+
+@Suppress("DEPRECATION")
+class VideoActivity : AppCompatActivity() {
+
+    private lateinit var database: DatabaseReference
+    private lateinit var videoScreen: String
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_video)
+
+        // Устанавливаем тулбар
+        val toolbar = findViewById<Toolbar>(R.id.video_toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setBackgroundColor(resources.getColor(R.color.colorPrimary, theme))
+        toolbar.setTitleTextColor(resources.getColor(R.color.colorPrimaryDark, theme))
+
+        // Настройка отображения видео и описания
+        videoScreen = intent.getStringExtra("videoScreen") ?: "1_1"
+        val webView = findViewById<WebView>(R.id.webview)
+        val description = findViewById<TextView>(R.id.description_text)
+
+        database = FirebaseDatabase.getInstance().getReference("Videos").child(videoScreen)
+
+        // Настроим WebView для соотношения сторон 16:9
+        val screenWidth = resources.displayMetrics.widthPixels
+        val aspectRatioHeight = (screenWidth * 9) / 16
+        val layoutParams = webView.layoutParams
+        layoutParams.height = aspectRatioHeight
+        webView.layoutParams = layoutParams
+
+        database.addListenerForSingleValueEvent(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val url = snapshot.child("url").value.toString()
+                val text = snapshot.child("text").value.toString()
+
+                // Настройка WebView
+                with(webView.settings) {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true // Для хранения данных в DOM
+                    mediaPlaybackRequiresUserGesture = false // Автоматическое воспроизведение
+                }
+
+                // Устанавливаем WebChromeClient для поддержки видео и полноэкранного режима
+                webView.webChromeClient = object : WebChromeClient() {
+                    override fun onShowCustomView(view: android.view.View?, callback: CustomViewCallback?) {
+                        super.onShowCustomView(view, callback)
+                        // Разворачиваем видео на полный экран
+                        setFullScreen(true)
+                    }
+
+                    override fun onHideCustomView() {
+                        super.onHideCustomView()
+                        // Возвращаемся из полноэкранного режима
+                        setFullScreen(false)
+                    }
+                }
+
+                webView.webViewClient = WebViewClient()
+
+                // Загружаем URL и устанавливаем описание
+                webView.loadUrl(url)
+                description.text = text
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                // Обработка ошибок
+            }
+        })
+    }
+
+    // Функция для установки/снятия полноэкранного режима
+    private fun setFullScreen(isFullScreen: Boolean) {
+        if (isFullScreen) {
+            // Скрываем статус-бар и панель навигации для полноэкранного режима
+            window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+        } else {
+            // Возвращаем в обычный режим
+            window.decorView.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+        }
+    }
+}
+
+
+
+Color.kt
+package com.blazik.howto.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Purple80 = Color(0xFFD0BCFF)
+val PurpleGrey80 = Color(0xFFCCC2DC)
+val Pink80 = Color(0xFFEFB8C8)
+
+val Purple40 = Color(0xFF6650a4)
+val PurpleGrey40 = Color(0xFF625b71)
+val Pink40 = Color(0xFF7D5260)
+
+Theme.kt
+package com.blazik.howto.ui.theme
+
+import android.app.Activity
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+
+private val DarkColorScheme = darkColorScheme(
+    primary = Purple80,
+    secondary = PurpleGrey80,
+    tertiary = Pink80
+)
+
+private val LightColorScheme = lightColorScheme(
+    primary = Purple40,
+    secondary = PurpleGrey40,
+    tertiary = Pink40
+
+    /* Other default colors to override
+    background = Color(0xFFFFFBFE),
+    surface = Color(0xFFFFFBFE),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFF1C1B1F),
+    onSurface = Color(0xFF1C1B1F),
+    */
+)
+
+@Composable
+fun HowToTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Dynamic color is available on Android 12+
+    dynamicColor: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    val colorScheme = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val context = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+
+        darkTheme -> DarkColorScheme
+        else -> LightColorScheme
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
+
+Type.kt
+package com.blazik.howto.ui.theme
+
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+
+// Set of Material typography styles to start with
+val Typography = Typography(
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp
+    )
+    /* Other default text styles to override
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.5.sp
+    )
+    */
+)
+
+ic_launcher_background.xml
+<?xml version="1.0" encoding="utf-8"?>
+<vector
+    android:height="108dp"
+    android:width="108dp"
+    android:viewportHeight="108"
+    android:viewportWidth="108"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <path android:fillColor="#3DDC84"
+          android:pathData="M0,0h108v108h-108z"/>
+    <path android:fillColor="#00000000" android:pathData="M9,0L9,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,0L19,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M29,0L29,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M39,0L39,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M49,0L49,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M59,0L59,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M69,0L69,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M79,0L79,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M89,0L89,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M99,0L99,108"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,9L108,9"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,19L108,19"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,29L108,29"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,39L108,39"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,49L108,49"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,59L108,59"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,69L108,69"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,79L108,79"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,89L108,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M0,99L108,99"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,29L89,29"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,39L89,39"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,49L89,49"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,59L89,59"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,69L89,69"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M19,79L89,79"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M29,19L29,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M39,19L39,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M49,19L49,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M59,19L59,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M69,19L69,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+    <path android:fillColor="#00000000" android:pathData="M79,19L79,89"
+          android:strokeColor="#33FFFFFF" android:strokeWidth="0.8"/>
+</vector>
+
+
+ic_launcher_foreground.xml
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:endX="85.84757"
+                android:endY="92.4963"
+                android:startX="42.9492"
+                android:startY="49.59793"
+                android:type="linear">
+                <item
+                    android:color="#44000000"
+                    android:offset="0.0" />
+                <item
+                    android:color="#00000000"
+                    android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="nonZero"
+        android:pathData="M65.3,45.828l3.8,-6.6c0.2,-0.4 0.1,-0.9 -0.3,-1.1c-0.4,-0.2 -0.9,-0.1 -1.1,0.3l-3.9,6.7c-6.3,-2.8 -13.4,-2.8 -19.7,0l-3.9,-6.7c-0.2,-0.4 -0.7,-0.5 -1.1,-0.3C38.8,38.328 38.7,38.828 38.9,39.228l3.8,6.6C36.2,49.428 31.7,56.028 31,63.928h46C76.3,56.028 71.8,49.428 65.3,45.828zM43.4,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2c-0.3,-0.7 -0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C45.3,56.528 44.5,57.328 43.4,57.328L43.4,57.328zM64.6,57.328c-0.8,0 -1.5,-0.5 -1.8,-1.2s-0.1,-1.5 0.4,-2.1c0.5,-0.5 1.4,-0.7 2.1,-0.4c0.7,0.3 1.2,1 1.2,1.8C66.5,56.528 65.6,57.328 64.6,57.328L64.6,57.328z"
+        android:strokeWidth="1"
+        android:strokeColor="#00000000" />
+</vector>
+
+ic_search.xml
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="@android:color/black"
+        android:pathData="M15.5,14h-0.79l-0.28,-0.27c1.07,-1.25 1.72,-2.87 1.72,-4.62 0,-3.87 -3.13,-7 -7,-7s-7,3.13 -7,7 3.13,7 7,7c1.75,0 3.37,-0.65 4.62,-1.72l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM10,15c-2.76,0 -5,-2.24 -5,-5s2.24,-5 5,-5 5,2.24 5,5 -2.24,5 -5,5z"/>
+</vector>
+
+
+activity_main.xml
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context=".MainActivity">
+
+    <!-- Контент основной активности -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Toolbar -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+            android:title="My App"
+            android:layout_gravity="start"/>
+
+        <!-- ScrollView для кнопок -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="30dp">
+
+            <!-- Контейнер для кнопок с белым фоном -->
+            <LinearLayout
+                android:id="@+id/button_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingBottom="13dp" />
+
+        </ScrollView>
+
+    </LinearLayout>
+
+    <!-- NavigationView (боковое меню) -->
+    <com.google.android.material.navigation.NavigationView
+        android:id="@+id/navigation_view"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        app:headerLayout="@layout/nav_header"
+        android:background="@android:color/white" />
+
+</androidx.drawerlayout.widget.DrawerLayout>
+
+
+
+activity_settings.xml
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context=".MainActivity">
+
+    <!-- Контент основной активности -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Toolbar -->
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/settings_toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+            android:title="My App"
+            android:layout_gravity="start"/>
+
+
+    </LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>
+
+
+
+activity_sub_button.xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/backgroundColor">
+
+    <!-- Toolbar -->
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/sub_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="30dp">
+
+        <!-- Контейнер для кнопок -->
+        <LinearLayout
+            android:id="@+id/sub_button_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingBottom="13dp" />
+    </ScrollView>
+</LinearLayout>
+
+
+activity_video.xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:background="@color/backgroundColor">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/video_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?attr/colorPrimary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+
+    <!-- WebView с фиксированным соотношением 16:9 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp">
+
+        <WebView
+            android:id="@+id/webview"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginBottom="16dp"
+            android:layout_weight="1" />
+    </FrameLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1">
+
+        <TextView
+            android:id="@+id/description_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="16dp"
+            android:textColor="@color/VideoText" />
+    </ScrollView>
+</LinearLayout>
+
+
+nav_header.xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/buttonBackground"
+    android:padding="16dp">
+
+    <!-- Аватар или изображение заголовка -->
+
+    <!-- Имя пользователя -->
+    <ImageView
+        android:id="@+id/header_image"
+        android:layout_width="89dp"
+        android:layout_height="72dp"
+        android:contentDescription="@string/app_name"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_search" />
+
+    <TextView
+        android:id="@+id/header_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Как оно работает?"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <!-- Email пользователя -->
+
+    <!-- Контейнер для кастомных элементов меню -->
+    <LinearLayout
+        android:id="@+id/nav_item_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp"
+        android:divider="@android:drawable/divider_horizontal_textfield"
+        android:showDividers="middle">
+    </LinearLayout>
+</LinearLayout>
+
+
+nav_menu_item.xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/item_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="16dp" />
+
+    <TextView
+        android:id="@+id/item_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="16sp" />
+</LinearLayout>
+
+
+
+nav_menu_layout.xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/item_icon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginEnd="16dp" />
+
+    <TextView
+        android:id="@+id/item_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="16sp" />
+</LinearLayout>
+
+
+main_menu.xml
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_search"
+        android:icon="@android:drawable/ic_menu_search"
+        android:title="Search"
+        app:actionViewClass="androidx.appcompat.widget.SearchView"
+        app:showAsAction="ifRoom|collapseActionView" />
+    <item
+        android:id="@+id/action_help"
+        android:icon="@android:drawable/ic_menu_help"
+        android:title="Help"
+        app:showAsAction="ifRoom" />
+    <!-- Добавьте кнопку для настройки -->
+</menu>
+
+
+navigation_menu.xml
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_settings"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="Settings" />
+
+</menu>
+
+
+ic_launcher.xml
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+
+ic_launcher_round.xml
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+
+attrs.xml
+<resources>
+    <declare-styleable name="ThemeCustom">
+        <attr name="colorButton" format="color" />
+    </declare-styleable>
+</resources>
+
+
+colors.xml
+<resources>
+    <color name="colorPrimary">#4682B4</color>
+    <color name="colorPrimaryDark">#2C5D83</color>
+    <color name="colorAccent">#87CEFA</color>
+    <color name="backgroundColor">#E6F7FF</color>
+    <color name="buttonTextColor">#1C1C1C</color>
+    <color name="buttonBackground">#1E90FF</color>
+    <color name="buttonPressed">#4169E1</color>
+    <color name="VideoText">#4682B4</color>
+</resources>
+
+
+strings.xml
+<resources>
+    <string name="app_name">HowTo</string>
+    <string name="drawer_open">Open Drawer</string>
+    <string name="drawer_close">Close Drawer</string>
+</resources>
+
+themes.xml
+<resources>
+    <style name="Theme.HowTo" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/backgroundColor</item>
+    </style>
+
+    <style name="CustomButton">
+        <item name="android:backgroundTint">@color/buttonBackground</item>
+        <item name="android:textColor">@color/buttonTextColor</item>
+        <item name="android:layout_margin">10dp</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <style name="CustomToolbar" parent="Widget.AppCompat.Toolbar">
+        <item name="android:background">@color/colorPrimary</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <style name="TopCornersRoundedShape" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">16dp</item>
+        <item name="cornerSizeTopRight">16dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+</resources>
+
+
+backup_rules.xml
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample backup rules file; uncomment and customize as necessary.
+   See https://developer.android.com/guide/topics/data/autobackup
+   for details.
+   Note: This file is ignored for devices older that API 31
+   See https://developer.android.com/about/versions/12/backup-restore
+-->
+<full-backup-content>
+    <!--
+   <include domain="sharedpref" path="."/>
+   <exclude domain="sharedpref" path="device.xml"/>
+-->
+</full-backup-content>
+
+data_extraction_rules.xml
+<?xml version="1.0" encoding="utf-8"?><!--
+   Sample data extraction rules file; uncomment and customize as necessary.
+   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
+   for details.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- TODO: Use <include> and <exclude> to control what is backed up.
+        <include .../>
+        <exclude .../>
+        -->
+    </cloud-backup>
+    <!--
+    <device-transfer>
+        <include .../>
+        <exclude .../>
+    </device-transfer>
+    -->
+</data-extraction-rules>
+

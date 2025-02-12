@@ -1,0 +1,10 @@
+<resources>
+    <color name="colorPrimary">#4682B4</color>
+    <color name="colorPrimaryDark">#2C5D83</color>
+    <color name="colorAccent">#87CEFA</color>
+    <color name="backgroundColor">#E6F7FF</color>
+    <color name="buttonTextColor">#1C1C1C</color>
+    <color name="buttonBackground">#1E90FF</color>
+    <color name="buttonPressed">#4169E1</color>
+    <color name="VideoText">#000000</color>
+</resources>

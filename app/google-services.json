@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "174608209761",
+    "project_id": "howto-9309a",
+    "storage_bucket": "howto-9309a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:174608209761:android:db023066b99a6d1d6d5720",
+        "android_client_info": {
+          "package_name": "com.blazik.howto"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAegqzV-7zmhZDqqgpLCFHrRcDsd1uKT2s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
