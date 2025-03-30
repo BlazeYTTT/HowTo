@@ -1,0 +1,42 @@
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/et_main_category"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Main Category"/>
+
+        <EditText
+            android:id="@+id/et_sub_category"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Sub Category"/>
+
+        <EditText
+            android:id="@+id/et_video_url"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Video URL"/>
+
+        <EditText
+            android:id="@+id/et_description"
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            android:gravity="start"
+            android:hint="Description"/>
+
+        <Button
+            android:id="@+id/btn_submit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Submit for Review"/>
+    </LinearLayout>
+</ScrollView>

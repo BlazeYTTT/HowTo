@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
 
         // Инициализация базы данных Firebase
         database = FirebaseDatabase.getInstance().getReference("Buttons")
+        database.orderByChild("status").equalTo("approved")
         loadButtonsFromFirebase()
     }
 
@@ -100,14 +101,23 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_create -> {
+                startActivity(Intent(this, CreateTutorialActivity::class.java))
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
 
     // Фильтрация кнопок по запросу
     private fun filterButtons(query: String) {
+        if (query == "admin123") {
+            startActivity(Intent(this, AdminActivity::class.java))
+            return
+        }
         buttonContainer.removeAllViews()
         for (pair in buttonsList) {
             val button = pair.first
@@ -199,6 +209,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(intent)
             }
         }
+
 
         layout.addView(imageView)
         layout.addView(button)

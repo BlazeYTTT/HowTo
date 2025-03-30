@@ -7,4 +7,8 @@
         app:actionViewClass="androidx.appcompat.widget.SearchView"
         app:showAsAction="ifRoom|collapseActionView" />
     <!-- Добавьте кнопку для настройки -->
+    <item
+        android:id="@+id/action_create"
+        android:title="Create"
+        app:showAsAction="always"/>
 </menu>
