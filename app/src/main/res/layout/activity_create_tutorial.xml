@@ -12,7 +12,7 @@
             android:id="@+id/et_main_category"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Main Category"/>
+            android:hint="Main Category" />
 
         <EditText
             android:id="@+id/et_sub_category"

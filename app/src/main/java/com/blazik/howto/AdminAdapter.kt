@@ -1,5 +1,6 @@
 package com.blazik.howto
 
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +15,7 @@ class AdminAdapter(private val tutorials: List<PendingTutorial>) :
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvMainCategory: TextView = view.findViewById(R.id.tv_main_category)
         val tvSubCategory: TextView = view.findViewById(R.id.tv_sub_category)
-        val btnApprove: Button = view.findViewById(R.id.btn_approve)
+        val tvStatus: TextView = view.findViewById(R.id.tv_status)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -25,18 +26,21 @@ class AdminAdapter(private val tutorials: List<PendingTutorial>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val tutorial = tutorials[position]
-        holder.tvMainCategory.text = tutorial.mainCategory
-        holder.tvSubCategory.text = tutorial.subCategory
-
-        holder.btnApprove.setOnClickListener {
-            approveTutorial(tutorial.key)
+        holder.itemView.setOnClickListener {
+            val intent = Intent(it.context, PendingTutorialDetailActivity::class.java).apply {
+                putExtra("tutorial", tutorial) // Важно: tutorial не должен быть null
+            }
+            it.context.startActivity(intent)
         }
-    }
+        holder.tvMainCategory.text = "Категория: ${tutorial.mainCategory}"
+        holder.tvSubCategory.text = "Подкатегория: ${tutorial.subCategory}"
+        holder.tvStatus.text = "Статус: ${tutorial.status}"
 
-    private fun approveTutorial(key: String?) {
-        if (key == null) return
-        val database = FirebaseDatabase.getInstance().getReference("PendingTutorials")
-        database.child(key).child("status").setValue("approved")
+        holder.itemView.setOnClickListener {
+            val intent = Intent(it.context, PendingTutorialDetailActivity::class.java)
+            intent.putExtra("tutorial", tutorial)
+            it.context.startActivity(intent)
+        }
     }
 
     override fun getItemCount() = tutorials.size

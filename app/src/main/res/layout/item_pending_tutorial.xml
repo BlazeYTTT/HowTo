@@ -1,9 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- item_pending_tutorial.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="?attr/selectableItemBackground">
 
     <TextView
         android:id="@+id/tv_main_category"
@@ -15,14 +16,14 @@
         android:id="@+id/tv_sub_category"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
-        android:layout_marginTop="8dp"/>
+        android:layout_marginTop="4dp"
+        android:textSize="16sp"/>
 
-    <Button
-        android:id="@+id/btn_approve"
-        android:layout_width="wrap_content"
+    <TextView
+        android:id="@+id/tv_status"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Approve"
-        android:layout_marginTop="16dp"/>
-
+        android:layout_marginTop="8dp"
+        android:textColor="@color/colorAccent"
+        android:textSize="14sp"/>
 </LinearLayout>

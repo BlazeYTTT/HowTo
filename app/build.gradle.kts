@@ -4,6 +4,8 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("org.jetbrains.kotlin.kapt") // Для KAPT
     id("com.google.gms.google-services")
+    id("kotlin-android")  // Эта строка должна быть
+    id("kotlin-parcelize") // Для Parcelable (опционально)
 }
 
 
